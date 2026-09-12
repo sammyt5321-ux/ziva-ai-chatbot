@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Ziva AI</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+    margin:0;
+    min-height:100vh;
+    font-family:Arial,sans-serif;
+    background:linear-gradient(135deg,#ff1493,#9b2cff,#5b21b6);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:15px;
+}
+
+.app{
+    width:100%;
+    max-width:650px;
+    height:92vh;
+    background:rgba(15,10,30,.94);
+    border-radius:25px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+}
+
+header{
+    padding:22px;
+    text-align:center;
+    background:linear-gradient(135deg,#ff1493,#8b2be2);
+    color:white;
+}
+
+header h1{
+    margin:0;
+    font-size:32px;
+}
+
+header p{
+    margin:6px 0 0;
+    opacity:.9;
+}
+
+#chat{
+    flex:1;
+    overflow-y:auto;
+    padding:20px;
+}
+
+.message{
+    max-width:85%;
+    padding:13px 16px;
+    margin-bottom:14px;
+    border-radius:18px;
+    line-height:1.5;
+    white-space:pre-wrap;
+}
+
+.ai{
+    background:#272238;
+    color:white;
+    border-bottom-left-radius:5px;
+}
+
+.user{
+    margin-left:auto;
+    background:linear-gradient(135deg,#ff1493,#8b2be2);
+    color:white;
+    border-bottom-right-radius:5px;
+}
+
+.input-area{
+    display:flex;
+    gap:8px;
+    padding:14px;
+    background:#171126;
+    border-top:1px solid #33294a;
+}
+
+input{
+    flex:1;
+    border:0;
+    outline:0;
+    padding:15px;
+    border-radius:25px;
+    background:#29213b;
+    color:white;
+    font-size:16px;
+}
+
+input::placeholder{
+    color:#aaa;
+}
+
+button{
+    border:0;
+    border-radius:25px;
+    padding:0 20px;
+    background:linear-gradient(135deg,#ff1493,#8b2be2);
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+button:disabled{
+    opacity:.5;
+}
+
+.status{
+    text-align:center;
+    font-size:11px;
+    color:#999;
+    padding:5px;
+    background:#171126;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+    <h1>✨ Ziva AI</h1>
+    <p>Your smart AI assistant</p>
+</header>
+
+<div id="chat">
+
+    <div class="message ai">
+        👋 Hello! I'm Ziva AI.
+
+        Ask me anything and I'll help you as much as I can.
+    </div>
+
+</div>
+
+<div class="status" id="status">
+    Ziva AI • Ready
+</div>
+
+<div class="input-area">
+
+    <input
+        id="message"
+        type="text"
+        placeholder="Ask Ziva anything..."
+        autocomplete="off"
+    >
+
+    <button id="send" onclick="sendMessage()">
+        Send
+    </button>
+
+</div>
+
+</div>
+
+<script>
+
+/*
+====================================================
+ ZIVA AI
+====================================================
+
+IMPORTANT:
+
+When we connect your Cloudflare Worker, replace:
+
+PASTE_YOUR_WORKER_URL_HERE
+
+with your Worker URL.
+
+Example:
+
+https://your-worker-name.your-subdomain.workers.dev
+
+====================================================
+*/
+
+const WORKER_URL = "PASTE_YOUR_WORKER_URL_HERE";
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("message");
+const send = document.getElementById("send");
+const status = document.getElementById("status");
+
+
+function addMessage(text, type){
+
+    const message = document.createElement("div");
+
+    message.className = "message " + type;
+
+    message.textContent = text;
+
+    chat.appendChild(message);
+
+    chat.scrollTop = chat.scrollHeight;
+
+    return message;
+}
+
+
+async function sendMessage(){
+
+    const text = input.value.trim();
+
+    if(!text) return;
+
+    addMessage(text,"user");
+
+    input.value = "";
+
+    send.disabled = true;
+
+    status.textContent = "Ziva AI • Thinking...";
+
+    const thinking = addMessage(
+        "Ziva is thinking...",
+        "ai"
+    );
+
+    try{
+
+        if(
+            WORKER_URL === "PASTE_YOUR_WORKER_URL_HERE"
+        ){
+
+            throw new Error(
+                "Ziva is not connected to the AI server yet. Add your Worker URL to the code."
+            );
+
+        }
+
+
+        const response = await fetch(
+            WORKER_URL,
+            {
+                method:"POST",
+
+                headers:{
+                    "Content-Type":"application/json"
+                },
+
+                body:JSON.stringify({
+                    message:text
+                })
+            }
+        );
+
+
+        const data = await response.json();
+
+
+        if(!response.ok){
+
+            throw new Error(
+                data.error || "The AI server returned an error."
+            );
+
+        }
+
+
+        thinking.textContent =
+            data.reply ||
+            "Sorry, I couldn't generate a response.";
+
+        status.textContent =
+            "Ziva AI • Online";
+
+
+    }catch(error){
+
+        thinking.textContent =
+            "⚠️ " + error.message;
+
+        status.textContent =
+            "Ziva AI • Connection problem";
+
+    }
+
+
+    send.disabled = false;
+
+    input.focus();
+
+}
+
+
+/* Press Enter to send */
+
+input.addEventListener(
+    "keydown",
+    function(event){
+
+        if(
+            event.key === "Enter" &&
+            !event.shiftKey
+        ){
+
+            event.preventDefault();
+
+            sendMessage();
+
+        }
+
+    }
+);
+
+</script>
+
+</body>
+</html>
